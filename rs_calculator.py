@@ -6,7 +6,6 @@ Calculates various RS metrics following O'Neil and Weinstein methodologies
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional
-from scipy import stats
 
 class RSCalculator:
     """Calculates Relative Strength metrics"""
@@ -152,8 +151,8 @@ class RSCalculator:
         if len(all_returns) == 0:
             return 50  # Default to middle if no data
         
-        # Calculate percentile
-        percentile = stats.percentileofscore(all_returns, stock_return)
+        # Calculate percentile using numpy
+        percentile = (np.sum(np.array(all_returns) < stock_return) / len(all_returns)) * 100
         return percentile
     
     def _calculate_rs_rank(self, symbol: str) -> int:
@@ -325,8 +324,15 @@ class RSCalculator:
         time_idx = np.arange(len(prices))
         
         try:
-            slope, intercept, r_value, p_value, std_err = stats.linregress(time_idx, prices)
-            r_squared = r_value ** 2
+            # Linear regression using numpy polyfit
+            coeffs = np.polyfit(time_idx, prices, 1)
+            slope = coeffs[0]
+            
+            # Calculate R-squared
+            y_pred = np.polyval(coeffs, time_idx)
+            ss_res = np.sum((prices - y_pred) ** 2)
+            ss_tot = np.sum((prices - np.mean(prices)) ** 2)
+            r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
             
             # Convert to 0-100 scale
             trend_strength = r_squared * 100
